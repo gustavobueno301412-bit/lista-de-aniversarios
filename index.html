@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎂 Agenda de Aniversários 🎂</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-color: #f8fafc;
+            --accent-color: #38bdf8;
+            --accent-hover: #0ea5e9;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --badge-bg: #334155;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--accent-color);
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            color: #94a3b8;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            background-color: #0f172a;
+            color: #fff;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--accent-color);
+            color: #0f172a;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .alert-box {
+            background-color: rgba(34, 197, 94, 0.15);
+            border: 1px solid var(--success);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-box h3 {
+            margin: 0 0 8px 0;
+            color: var(--success);
+            font-size: 1.1rem;
+        }
+
+        .birthday-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .birthday-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #0f172a;
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid var(--accent-color);
+        }
+
+        .birthday-item.today {
+            border-left-color: var(--success);
+            background-color: rgba(34, 197, 94, 0.05);
+        }
+
+        .info span {
+            display: block;
+        }
+
+        .name {
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        .date {
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+
+        .countdown {
+            font-size: 0.8rem;
+            background-color: var(--badge-bg);
+            color: var(--accent-color);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .birthday-item.today .countdown {
+            background-color: var(--success);
+            color: #fff;
+        }
+
+        .loading {
+            text-align: center;
+            color: #94a3b8;
+            font-style: italic;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🎂 Agenda de Aniversários 🎂</h1>
+
+    <div id="todayAlert" class="alert-box" style="display: none;">
+        <h3>🎉 Aniversariante(s) de Hoje!</h3>
+        <div id="todayNames"></div>
+    </div>
+
+    <div class="card">
+        <form id="birthdayForm">
+            <div class="form-group">
+                <label for="name">👤 Nome da Pessoa</label>
+                <input type="text" id="name" required placeholder="Ex: Maria Silva">
+            </div>
+            <div class="form-group">
+                <label for="birthdate">📆 Data de Nascimento</label>
+                <input type="date" id="birthdate" required>
+            </div>
+            <button type="submit" id="submitBtn">💾 Cadastrar na Planilha</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3 style="margin-top: 0; font-size: 1.1rem; color: #94a3b8;">📝 Lista de Aniversários</h3>
+        <div id="loadingMessage" class="loading">⏳ Carregando dados da planilha...</div>
+        <ul id="birthdayList" class="birthday-list">
+            <!-- Os itens entram aqui via JS -->
+        </ul>
+    </div>
+</div>
+
+<script>
+    // Cole aqui a URL gerada na implantação do seu Google Apps Script:
+    const URL = "https://script.google.com/macros/s/AKfycbxyunSo9QIcXdgh8vxge2ySghYm40jKC4MCtmHEZRmUi9bskjgnHrbyY63cqiPNWwjwJA/exec";
+
+    let birthdays = [];
+
+    const form = document.getElementById('birthdayForm');
+    const birthdayList = document.getElementById('birthdayList');
+    const todayAlert = document.getElementById('todayAlert');
+    const todayNames = document.getElementById('todayNames');
+    const loadingMessage = document.getElementById('loadingMessage');
+    const submitBtn = document.getElementById('submitBtn');
+
+    if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+        Notification.requestPermission();
+    }
+
+    async function fetchBirthdays() {
+        if (!URL || URL.includes("SUA_URL")) {
+            loadingMessage.innerHTML = "Por favor, configure a constante URL do Apps Script no código.";
+            return;
+        }
+
+        try {
+            const response = await fetch(URL);
+            const data = await response.json();
+            birthdays = data;
+            loadingMessage.style.display = 'none';
+            render();
+        } catch (error) {
+            loadingMessage.innerHTML = "Erro ao carregar dados da planilha.";
+            console.error(error);
+        }
+    }
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const name = document.getElementById('name').value;
+        const birthdate = document.getElementById('birthdate').value;
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Salvando na planilha...";
+
+        try {
+            const response = await fetch(URL, {
+                method: 'POST',
+                body: JSON.stringify({ name, birthdate })
+            });
+            const result = await response.json();
+
+            if (result.status === "success") {
+                form.reset();
+                fetchBirthdays();
+            } else {
+                alert("Erro ao salvar: " + result.message);
+            }
+        } catch (error) {
+            alert("Erro de conexão com a API.");
+            console.error(error);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Cadastrar na Planilha";
+        }
+    });
+
+    function cleanDateString(dateStr) {
+        if (!dateStr) return { year: '', month: '', day: '', formatted: '' };
+       
+        let str = String(dateStr);
+        if (str.includes('T')) {
+            str = str.split('T')[0];
+        }
+       
+        const parts = str.split('-');
+        if (parts.length === 3) {
+            const [year, month, day] = parts;
+            return {
+                year,
+                month,
+                day,
+                formatted: `${day}/${month}/${year}`
+            };
+        }
+        return { year: '', month: '', day: '', formatted: dateStr };
+    }
+
+    // Calcula os dias faltantes para o próximo aniversário
+    function getDaysUntilBirthday(month, day) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        let currentYear = today.getFullYear();
+        let bdayThisYear = new Date(currentYear, parseInt(month) - 1, parseInt(day));
+
+        // Se já passou o aniversário este ano, calcula para o ano que vem
+        if (bdayThisYear < today) {
+            bdayThisYear.setFullYear(currentYear + 1);
+        }
+
+        const diffTime = bdayThisYear - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays;
+    }
+
+    function checkTodayBirthdays() {
+        const today = new Date();
+        const currentDay = String(today.getDate()).padStart(2, '0');
+        const currentMonth = String(today.getMonth() + 1).padStart(2, '0');
+        const todayString = `${currentMonth}-${currentDay}`;
+
+        let todayPeople = [];
+
+        birthdays.forEach(b => {
+            const d = cleanDateString(b.birthdate);
+            if (d.month && d.day) {
+                const bMonthDay = `${d.month}-${d.day}`;
+                if (bMonthDay === todayString) {
+                    const age = today.getFullYear() - parseInt(d.year);
+                    todayPeople.push(`${b.name} (${age} anos)`);
+                }
+            }
+        });
+
+        if (todayPeople.length > 0) {
+            todayAlert.style.display = 'block';
+            todayNames.innerHTML = todayPeople.join('<br>');
+
+            if (Notification.permission === "granted") {
+                new Notification("🎉 Aniversariante hoje!", {
+                    body: todayPeople.join(', '),
+                    icon: "https://cdn-icons-png.flaticon.com/512/3132/3132693.png"
+                });
+            }
+        } else {
+            todayAlert.style.display = 'none';
+        }
+    }
+
+    function render() {
+        birthdayList.innerHTML = '';
+       
+        if (birthdays.length === 0) {
+            birthdayList.innerHTML = '<li style="text-align: center; color: #94a3b8; padding: 10px;">Nenhum aniversário cadastrado.</li>';
+            return;
+        }
+
+        // Opcional: Ordena a lista do mais próximo para o mais distante
+        birthdays.sort((a, b) => {
+            const da = cleanDateString(a.birthdate);
+            const db = cleanDateString(b.birthdate);
+            return getDaysUntilBirthday(da.month, da.day) - getDaysUntilBirthday(db.month, db.day);
+        });
+
+        birthdays.forEach((b) => {
+            const d = cleanDateString(b.birthdate);
+           
+            const today = new Date();
+            const currentDay = String(today.getDate()).padStart(2, '0');
+            const currentMonth = String(today.getMonth() + 1).padStart(2, '0');
+            const isToday = (d.month === currentMonth && d.day === currentDay);
+
+            let countdownText = '';
+            if (isToday) {
+                countdownText = '🎉 É Hoje!';
+            } else {
+                const days = getDaysUntilBirthday(d.month, d.day);
+                if (days === 1) {
+                    countdownText = 'Falta 1 dia';
+                } else {
+                    countdownText = `Faltam ${days} dias`;
+                }
+            }
+
+            const li = document.createElement('li');
+            li.className = `birthday-item ${isToday ? 'today' : ''}`;
+            li.innerHTML = `
+                <div class="info">
+                    <span class="name">${b.name} ${isToday ? '⭐' : ''}</span>
+                    <span class="date">Nascimento: ${d.formatted}</span>
+                </div>
+                <div class="countdown">${countdownText}</div>
+            `;
+            birthdayList.appendChild(li);
+        });
+
+        checkTodayBirthdays();
+    }
+
+    fetchBirthdays();
+</script>
+
+</body>
+</html>
+
+ 
